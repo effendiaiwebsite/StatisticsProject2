@@ -30,7 +30,12 @@
       "Bash(/c/Users/spssa/AppData/Local/Programs/Python/Python313/python.exe -m pip list)",
       "Bash(curl -s -o /dev/null -w \"8536=%{http_code}\\\\n\" http://localhost:8536)",
       "Bash(curl -s -o /dev/null -w \"8537=%{http_code}\\\\n\" http://localhost:8537)",
-      "Bash(rm -f _st.log)"
+      "Bash(rm -f _st.log)",
+      "Bash(cat sp2/render.yaml)",
+      "Bash(cat render.yaml)",
+      "Bash(cat .gitignore)",
+      "Bash(git remote *)",
+      "Bash(git ls-files *)"
     ]
   }
 }
