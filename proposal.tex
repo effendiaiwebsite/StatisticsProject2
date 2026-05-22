@@ -1,0 +1,71 @@
+\documentclass[10pt]{article}
+
+\usepackage[letterpaper,margin=0.5in]{geometry}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1pt}
+\linespread{0.95}
+\setlist[itemize]{leftmargin=1.2em,topsep=0pt,itemsep=0pt,parsep=0pt}
+\titleformat{\section}{\normalfont\bfseries}{}{0pt}{}
+\titlespacing{\section}{0pt}{2pt}{0pt}
+\pagestyle{empty}
+
+\newcommand{\heading}[1]{\section*{#1}}
+
+\begin{document}
+
+\begin{center}
+{\bfseries Major Crime Query, Visualization, and Anomaly-Detection Database}\\
+{\small Muskan Walia \quad Saif Chhipa \quad Hanson Ho \quad Satinder Sandhu}\\
+{\small FSCT 7910 --- Research Methodology and Measurement Models, British Columbia Institute of Technology}
+\end{center}
+
+\heading{Introduction}
+The project team will create a consolidated database from various sources on all major crimes that occurred in BC in the past century. Using the noted database, an analytical dashboard will be created to display and visualize the information. Building on the team's earlier work --- a hybrid outlier-detection ensemble --- this dashboard will additionally apply that algorithm to the crime statistics so that unusual patterns are surfaced automatically. The intended purpose of this software/web app is to provide law enforcement personnel with minimal technological training to quickly compile and filter complex data sets into visualizations, and to have abnormal data points flagged for them, so that they may better detect patterns to potentially predict and deter crime.
+
+\heading{Background and Gap}
+Crime data for British Columbia is publicly available, and dashboards for displaying it are well established; statistical outlier detection is likewise a mature field, with methods such as the Modified Z-Score, Tukey's fences, and the Isolation Forest in common use. Current crime dashboards, however, stop at visualization; they do not indicate which records are statistically abnormal, and single detectors often disagree and demand expert tuning. This project fills that gap by attaching a reconciled four-detector ensemble to the dashboard, so that anomalies are surfaced automatically and remain interpretable to a non-expert operator.
+
+\heading{Project Type}
+Software and Program Creation, Data Collation, Display, and Statistical Anomaly Detection.
+
+\heading{Aims and Objectives}
+\begin{itemize}
+  \item Collection, compilation, and collation of data from multiple open-source intelligence sources into a database which the tool will draw from to project metrics and display.
+  \item The creation of this tool is intended to provide Law Enforcement Agencies with the means to easily analyze major crimes in the region of BC in the last century.
+  \item The tool is meant to be easily operated by the lay person with minimal technical knowledge.
+  \item Application of the team's hybrid outlier-detection algorithm to the collated crime data, with tuning controls so that the operator can adjust detection sensitivity and immediately observe how the flagged anomalies change.
+  \item All data points will draw from open-source information: Vancouver Police Department Open Data; the BC Ministry of Public Safety \& Solicitor General, \textit{Crime Statistics in British Columbia} (Appendix F); Statistics Canada Uniform Crime Reporting data; and supplementary municipal and RCMP open-data releases.
+\end{itemize}
+
+\heading{Outcomes and Deliverables}
+\begin{itemize}
+  \item Program that is able to sort, filter, and display major crimes in BC dating back 100 years.
+  \item Sorting and filter function will include a drop-down list of the following parameters: Date, Time, Crime Type, and Location.
+  \item Display function will include options to visualize the parameters noted above in the following formats: Bar Graph, Pie Chart, Mapping Coordinates, and Heat Map.
+  \item An anomaly-detection function applying a four-detector ensemble --- iterative trimming, the Modified Z-Score (MAD), Tukey's IQR fences, and an Isolation Forest --- reconciled by a majority vote into Normal, Possible, and High-confidence verdicts on the filtered data.
+  \item Tuning controls exposed in the interface --- strictness (MAD and IQR), contamination (Isolation Forest), and iteration count (iterative trimmer) --- with the visualizations re-rendering as they are adjusted.
+  \item The creation of a dashboard with an intuitive user interface that can be easily and quickly manipulated to display a combination of various data sets and their detected anomalies.
+  \item Program will be tested and free of bugs and abnormalities, and will have the option to operate independent of connection to the internet, drawing from an internal database.
+\end{itemize}
+
+\heading{Research Methodology}
+PMI project management principles and methodologies for delivery and control. The anomaly-detection layer draws on established statistical methods --- the Iglewicz \& Hoaglin Modified Z-Score, Tukey's IQR fences, the Liu et al. Isolation Forest, and an iterative trimming criterion --- combined through an ensemble majority vote.
+
+\heading{Risks and Mitigation}
+\begin{itemize}
+  \item Data sources differ in format and quality; a normalization step will reconcile schemas before loading.
+  \item Detectors may over-flag or disagree; the majority vote and a vote-eligibility cutoff constrain false positives.
+  \item Open data may be incomplete or revised; an internal snapshot keeps results reproducible offline.
+  \item Scope and time are limited; the work will be delivered in phases, the database and visualization preceding the anomaly layer.
+\end{itemize}
+
+\heading{Hardware and Software Requirements}
+Personal Computer; Python as the core language, with pandas and NumPy for data processing, scikit-learn for the Isolation Forest, Streamlit for the application, and Plotly for interactive charts and mapping; HTML, CSS, and JavaScript for the browser-rendered front end; and a standard web browser to view the dashboard. All software is open source.
+
+\end{document}

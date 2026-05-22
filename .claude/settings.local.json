@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install *)",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 -m pip install pandas openpyxl -q)",
+      "Bash(pip3 --version)",
+      "Bash(pip --version)",
+      "Read(//usr/bin/**)",
+      "Read(//home/vboxuser/.local/bin/**)",
+      "Bash(uv pip *)",
+      "Bash(curl -s http://localhost:8501/_stcore/health)",
+      "Bash(.venv/Scripts/python.exe -c 'import sys; *)",
+      "Bash(ls .venv/Scripts)",
+      "Bash(ls .venv/bin)",
+      "Bash(which python *)",
+      "PowerShell(Get-Command py -ErrorAction SilentlyContinue)",
+      "Bash(ls /c/Python*/python.exe)",
+      "Read(//c/Users/spssa/AppData/Local/Programs/Python/**)",
+      "Read(//c/ProgramData/anaconda3/**)",
+      "Read(//c/Users/spssa/anaconda3/**)",
+      "Read(//c/Program Files/**)",
+      "Bash(/c/Users/spssa/AppData/Local/Programs/Python/Python313/python.exe -c ' *)",
+      "Bash(/c/Users/spssa/AppData/Local/Programs/Python/Python313/python.exe -m pip install --quiet pypdf)",
+      "Read(//c/Users/spssa/AppData/Local/Programs/MiKTeX/miktex/bin/x64/**)",
+      "Read(//c//**)",
+      "PowerShell($w=Get-Command winget -ErrorAction SilentlyContinue; if\\($w\\){\"winget: $\\($w.Source\\)\"}else{\"no-winget\"}; try{ $r=Invoke-WebRequest -UseBasicParsing -Uri \"https://github.com\" -Method Head -TimeoutSec 8; \"net-ok: $\\($r.StatusCode\\)\" }catch{ \"net-fail: $\\($_.Exception.Message\\)\" })",
+      "Bash(/usr/bin/python3 --version)",
+      "Bash(xxd \"C:\\\\Users\\\\spssa\\\\Documents\\\\pc2\\\\pc2\\\\.venv\\\\bin\\\\python\")",
+      "Bash(/c/Users/spssa/AppData/Local/Programs/Python/Python313/python.exe -m pip list)",
+      "Bash(curl -s -o /dev/null -w \"8536=%{http_code}\\\\n\" http://localhost:8536)",
+      "Bash(curl -s -o /dev/null -w \"8537=%{http_code}\\\\n\" http://localhost:8537)",
+      "Bash(rm -f _st.log)"
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "crime-dashboard",
+      "runtimeExecutable": "C:\\Users\\spssa\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+      "runtimeArgs": ["-m", "streamlit", "run", "app.py", "--server.headless", "true", "--server.port", "8537"],
+      "port": 8537
+    }
+  ]
+}
