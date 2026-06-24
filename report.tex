@@ -1,0 +1,185 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{url}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{BC Crime Explorer: An Interactive Dashboard for Crime Visualization and Hybrid Statistical Outlier Detection}
+
+\author{
+\IEEEauthorblockN{Muskan Walia, \quad Saif Chhipa, \quad Hanson Ho, \quad Satinder Sandhu}
+\IEEEauthorblockA{\textit{FSCT 7910, British Columbia Institute of Technology}\\
+Burnaby, Canada}
+}
+
+\maketitle
+
+\begin{abstract}
+Public crime dashboards are now common, but the overwhelming majority stop at visualization: they let users filter and plot recorded incidents and leave the reader to spot unusual patterns by eye. This paper presents BC Crime Explorer, an interactive web dashboard for crime data in British Columbia that pairs conventional filtered visualization with an automated, tunable statistical anomaly-detection layer. The system consolidates incident-level Vancouver Police Department records (2003--2021, roughly 794{,}000 incidents) with provincial summary statistics and a curated timeline of major provincial crime events. Its distinguishing contribution is a hybrid outlier-detection ensemble that reconciles four independent detectors---the Modified Z-Score, Tukey's interquartile-range fences, an Isolation Forest, and an iterative mean/standard-deviation trimming procedure---through a simple majority vote into Normal, Possible, and High-confidence verdicts. The ensemble runs in both univariate and multivariate modes over any aggregation the analyst chooses (year, month, neighbourhood, region, crime type, hour) and exposes three independent sensitivity controls. The dashboard is implemented as a single-process Python application using Streamlit, Plotly, pandas, and scikit-learn, and is deployed to a cloud platform. We describe the data pipeline, the detector formulation, the voting scheme, and the user interface, and we report a case study in which the ensemble flags the 2003--2004 reporting peak and the 2021 trough as high-confidence anomalies in the annual series.
+\end{abstract}
+
+\begin{IEEEkeywords}
+crime analytics, outlier detection, anomaly detection, interactive dashboard, ensemble methods, data visualization, Isolation Forest
+\end{IEEEkeywords}
+
+\section{Introduction}
+Open crime data is increasingly published by police services and statistical agencies, and a large family of web dashboards has grown around it. These tools have demonstrably improved public access to crime information, but they share a common limitation: they are predominantly \textit{descriptive}. A user filters by date, place, and offence type, and the dashboard renders counts on a map or a chart. Identifying which of those counts is statistically unusual---an unexpected spike in a neighbourhood, a season that departs from its historical baseline, a category whose volume is anomalous given the rest of the data---is left entirely to the human reader.
+
+This project addresses that gap. Building on the team's earlier work on a hybrid outlier-detection algorithm, we integrate that algorithm directly into a crime-analytics dashboard so that anomalies are surfaced and explained automatically. The intended user is a law-enforcement or policy analyst with minimal technical training, who needs to move quickly from ``what does the data look like'' to ``which parts of it warrant attention, and why.''
+
+The contributions of this work are: (1) a consolidated, multi-source British Columbia crime dataset behind a single interactive dashboard; (2) the integration of a four-detector voting ensemble that screens any user-chosen aggregation of the filtered data and labels each group as Normal, Possible, or High-confidence; (3) univariate and multivariate detection modes with three independent, analyst-facing sensitivity controls; and (4) a lightweight, reproducible single-process implementation that deploys to a free or low-cost cloud tier.
+
+\section{Related Work}
+Crime dashboards span academic prototypes, course projects, commercial platforms, and open-source tools. We summarise representative examples and position our work against them.
+
+\subsection{Academic prototypes}
+Liu \cite{liu2020} designed and implemented a geospatial dashboard for crime analysis and \textit{prediction} as a Master's thesis, arguing that most crime dashboards function only as visualization tools. The prototype, demonstrated on City of Toronto open data, is built on a Node.js/Express backend with a JavaScript front end and implements genuinely spatial-statistical analytics: Moran's I spatial autocorrelation, mean-center and standard-deviational-ellipse analysis, and ST-DBSCAN spatio-temporal clustering as its prediction mechanism. Our system shares the goal of moving beyond pure visualization but differs in analytical philosophy: Liu's contribution is spatial and predictive, whereas ours is distributional and anomaly-focused, and our single-process Python stack is substantially lighter than the Node/OpenLayers/Python-services architecture used there.
+
+Januszewski and Greene \cite{januszewski2026} published an open-access web tool for exploring crime patterns around U.S.\ counties and postsecondary institutions, drawing on IPEDS, the Campus Safety and Security survey, and Uniform Crime Reporting data via ICPSR. The tool is a safety decision-support resource for a non-technical audience and lets users filter and compare institutions geographically; its analysis, however, stops at the visualization layer. Our work targets a single jurisdiction and adds the algorithmic layer their tool omits.
+
+\subsection{Course projects and open-source tools}
+VanCrime \cite{vancrime} is the closest peer: a UBC Master of Data Science dashboard built on the same Vancouver Police Department open data (2003--2022) as ours, implemented in R Shiny with a crime-map tab and a statistics tab and standard filters. It is a polished but bounded single-term deliverable; our app adds the outlier-detection model with tunable sensitivity, a multi-decade events timeline, and a provincial-statistics layer. A scalable AWS-based architecture for analysing Los Angeles crime data \cite{harrisburg} demonstrates batch and real-time pipelines feeding Tableau, and the Vancouver Police Department Crimes Navigation Tool \cite{umar} offers a clean four-parameter Shiny map. Commercial and community platforms---CrimeMapping \cite{crimemapping}, the LexisNexis Community Crime Map \cite{lexisnexis}, and SpotCrime \cite{spotcrime}---ingest records from police systems and present geocoded incidents with alerts and trend tools, while the open-source CrimeData-Vancouver \cite{crimedatavan} provides a Docker-based analytics interface. Across all of these, the system presents recorded incidents and the user must interpret unusual patterns; none provides automated, tunable outlier verdicts on arbitrary aggregations of the data, which is the niche our work occupies.
+
+\section{Data and System Architecture}
+
+\subsection{Data sources}
+The dashboard consolidates three categories of open data:
+\begin{itemize}
+\item \textbf{Incident-level records.} Vancouver Police Department open data, covering 2003--2021. After cleaning and enrichment this yields approximately 794{,}000 incidents with fields for year, month, day, hour, crime type, neighbourhood, and approximate coordinates.
+\item \textbf{Provincial summary statistics.} British Columbia province-wide offence counts, rates, and Crime Severity Index values for 2022--2023, parsed from the provincial ``Crime Statistics in British Columbia'' report.
+\item \textbf{Contextual timeline.} A curated record of major BC crime events from 1982 onward, used to contextualise inflection points in the series.
+\end{itemize}
+
+\subsection{Data pipeline}
+On load, the raw incident CSV is normalised: columns are renamed to a canonical schema, year/month/day/hour fields are coerced to numeric and range-validated, and derived attributes are computed. These include a coarse crime category (Property, Violent, Homicide, Traffic, Other), a regional grouping of neighbourhoods, a decade bucket, a season, an approximate day of week, and a per-incident Crime Severity Index (CSI) weight reflecting offence seriousness. Neighbourhood centroids are attached for mapping. Results are cached so that subsequent interactions do not re-read the source file.
+
+\subsection{Technology stack}
+The application is a single Python process. Streamlit provides the web framework and reactive UI; Plotly renders interactive charts and maps; pandas and NumPy handle data processing; and scikit-learn supplies the Isolation Forest. The browser-rendered front end is therefore HTML, CSS, and JavaScript generated by the framework rather than hand-authored. The system runs offline against its bundled dataset and is deployed to a cloud platform via a declarative service configuration.
+
+\section{Methodology: Hybrid Outlier Detection}
+The analytical core is an ensemble of four detectors that each emit a binary flag per data point. The detectors are deliberately chosen to be sensitive to qualitatively different things; their disagreement is precisely what the ensemble is built to surface.
+
+\subsection{Modified Z-Score (MAD)}
+For a sample $x = (x_1,\dots,x_n)$ with median $\tilde{x}$, the modified Z-score of Iglewicz and Hoaglin \cite{iglewicz1993} is
+\begin{equation}
+M_i = \frac{0.6745\,(x_i - \tilde{x})}{\mathrm{MAD}}, \quad \mathrm{MAD} = \operatorname{median}_i |x_i - \tilde{x}|,
+\end{equation}
+where the constant $0.6745$ makes MAD a consistent estimator of the standard deviation under normality. A point is flagged when $|M_i| > \tau$. When $\mathrm{MAD}=0$ the detector falls back to a mean-absolute-deviation estimator scaled by $1.2533$.
+
+\subsection{Tukey's IQR fences}
+With first and third quartiles $Q_1, Q_3$ and $\mathrm{IQR}=Q_3-Q_1$, a point is flagged \cite{tukey1977} when it falls outside
+\begin{equation}
+\big[\,Q_1 - k\cdot\mathrm{IQR},\; Q_3 + k\cdot\mathrm{IQR}\,\big].
+\end{equation}
+The procedure is distribution-free, depending only on quartiles, but requires the analyst to choose $k$.
+
+\subsection{Isolation Forest}
+We use an Isolation Forest \cite{liu2008} with $200$ estimators. The method isolates points by random recursive partitioning; anomalies, being few and different, are isolated in shorter average path lengths and receive higher anomaly scores. A contamination parameter sets the score quantile above which a point is declared anomalous; we expose this in the range $[0.01, 0.20]$. Unlike the per-column detectors, the Isolation Forest is run once over the full numeric matrix and so can capture combination outliers that no single-variable method detects.
+
+\subsection{Iterative mean/standard-deviation trimming}
+Starting from $S_0 = \{x_1,\dots,x_n\}$ with $\mu_0,\sigma_0$ the mean and standard deviation of the full sample, the method runs for a user-chosen number of iterations $I$. At step $i$ it keeps only points inside a shrinking band:
+\begin{align}
+f_i &= \frac{I - i}{10}, \\
+S_i &= \{\, x \in S_{i-1} : |x - \mu_{i-1}| \le f_i\,\sigma_{i-1} \,\}, \\
+\mu_i &= \operatorname{mean}(S_i), \quad \sigma_i = \operatorname{std}(S_i).
+\end{align}
+Because the multiplier $f_i$ shrinks linearly toward zero, the band eventually rejects nearly every point if run to convergence. To prevent this detector from dominating the vote, a removed point is counted as \textit{vote-eligible} only if it was dropped while $f_i \ge 1.5$---that is, while the band still behaves as an outlier filter rather than a uniform trimmer.
+
+\subsection{Voting ensemble}
+Each detector contributes one binary flag per data point. The vote count $c \in \{0,1,2,3,4\}$ is their sum, and the verdict is assigned as in Table~\ref{tab:vote}. In multivariate mode the MAD, IQR, and iterative detectors are run per feature and a row is flagged if any feature flags it (OR aggregation), while the Isolation Forest is run once on the full matrix.
+
+\begin{table}[t]
+\caption{Vote count to verdict mapping}
+\label{tab:vote}
+\centering
+\begin{tabular}{cl}
+\hline
+\textbf{Vote count $c$} & \textbf{Verdict} \\
+\hline
+$0$ & Normal \\
+$1$ & Possible \\
+$\ge 2$ & High-confidence \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Sensitivity controls}
+Three independent controls are exposed, one per group of detectors sharing assumptions, as summarised in Table~\ref{tab:controls}. Critically these are not redundant: changing strictness does nothing to the Isolation Forest, and changing contamination does nothing to MAD or IQR. We deliberately avoid collapsing them into a single ``sensitivity'' knob, because doing so would hide exactly the disagreement the ensemble is designed to reconcile.
+
+\begin{table}[t]
+\caption{Analyst-facing sensitivity controls}
+\label{tab:controls}
+\centering
+\begin{tabular}{lll}
+\hline
+\textbf{Control} & \textbf{Affects} & \textbf{Values} \\
+\hline
+Strictness & MAD, IQR & Lenient ($\tau{=}4.0, k{=}2.0$) \\
+           &          & Balanced ($\tau{=}3.5, k{=}1.5$) \\
+           &          & Strict ($\tau{=}3.0, k{=}1.0$) \\
+Contamination & Isolation Forest & $[0.01, 0.20]$ \\
+Iterations & Iterative trimmer & $[1, 100]$ \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Implementation}
+The dashboard is organised into tabbed views: an overview with headline metrics, time-trend charts, a geographic map and regional breakdowns, a filterable data explorer, advanced visual analytics, the dedicated outlier-detection tab, the historical timeline, and an automatically generated insights panel. A persistent sidebar provides global filters---a year-range slider, toggle-pill selectors for crime category and region, a neighbourhood multiselect with select-all/clear shortcuts, and a Crime Severity Index range---and every tab operates on the resulting filtered subset.
+
+The outlier-detection tab lets the analyst choose an aggregation dimension (year, year-month, decade, neighbourhood, region, crime type, crime category, season, day of week, or hour) and a metric (incident count, total CSI weight, or average CSI weight). It then runs the ensemble, displays the verdict tallies and per-detector counts as metric cards, and renders the aggregated series as a bar chart with each group colour-coded by verdict (red for high-confidence, gold for possible). An explicit ``Detected Outliers'' callout names the flagged groups and their values, a focused table lists only the flagged entries with the per-detector breakdown, and a full per-group table and CSV export are provided. In multivariate mode the chart becomes a principal-component scatter of the engineered feature matrix, again colour-coded by verdict.
+
+\section{Results and Case Study}
+To illustrate the system we aggregate the full filtered dataset by year and screen the resulting 19-point annual incident series (2003--2021).
+
+In \textbf{univariate} mode with the Strict preset and the iterative detector at $I=20$, the ensemble returns three high-confidence anomalies, three possible, and thirteen normal. The high-confidence years are 2003 (58{,}838 incidents) and 2004 (58{,}137), the early-period reporting peak, and 2021 (11{,}047), the trough. The per-detector counts---MAD $1$, IQR $3$, Isolation Forest $2$, iterative $6$---show the characteristic spread the ensemble is designed to reconcile: the iterative detector flags the most points, but only those corroborated by at least one other detector survive into the high-confidence verdict.
+
+In \textbf{multivariate} mode, screening four engineered per-year features (incident count, total CSI weight, average CSI weight, and number of distinct crime types) with the Balanced preset, the ensemble returns five high-confidence years---2003 through 2006 and 2021---reflecting that the additional features pick up structure in the early high-volume period that the single incident-count series does not. Table~\ref{tab:results} summarises both runs.
+
+\begin{table}[t]
+\caption{Annual-series detection results}
+\label{tab:results}
+\centering
+\begin{tabular}{lccc}
+\hline
+\textbf{Mode (preset)} & \textbf{High} & \textbf{Possible} & \textbf{Normal} \\
+\hline
+Univariate (Strict)   & 3 & 3 & 13 \\
+Multivariate (Balanced) & 5 & 3 & 11 \\
+\hline
+\end{tabular}
+\end{table}
+
+The flagged years are interpretable: the 2003--2006 peak coincides with the highest recorded incident volumes in the dataset, and 2021 is a known low driven by both genuine pandemic-era effects and the partial coverage of the most recent year. Crucially, the dashboard does not merely report \textit{that} these years are unusual---it shows \textit{which} detectors agreed and lets the analyst re-tune the controls and watch the verdicts update.
+
+\section{Discussion and Limitations}
+The ensemble's strength is also its honest limitation: the verdict depends on the chosen controls, and the controls are exposed precisely so the analyst can reason about sensitivity rather than trust a single black-box threshold. The aggregation step matters as well---an aggregation with fewer than three groups cannot support outlier detection, and very fine aggregations can produce many small groups in which a single incident dominates.
+
+The data carries its own caveats. Incident-level coverage is Vancouver-centric and runs to 2021; the 2022--2023 provincial layer is aggregate only. Reporting practices and recording changes over two decades mean some apparent anomalies reflect administrative rather than real-world shifts---a point the timeline view helps contextualise. Finally, the single-process design that makes the system easy to deploy also bounds the data volume it can hold in memory on a small cloud instance; scaling to the full multi-decade, multi-source vision will require categorical encoding and, eventually, a database-backed query layer rather than in-memory aggregation.
+
+\section{Conclusion and Future Work}
+BC Crime Explorer demonstrates that a conventional crime-visualization dashboard can be extended, at modest engineering cost, with an automated and interpretable anomaly-detection layer. By reconciling four complementary detectors through a majority vote and exposing their disagreement through tunable controls, the system answers not only ``what does the data look like'' but ``which parts of it are statistically abnormal, and why.'' Future work includes incorporating additional jurisdictions and the Statistics Canada court-outcome data, adding spatial outlier detection to complement the current distributional approach, migrating the data layer to a database for scale, and conducting a usability study with the intended law-enforcement and policy audience.
+
+\begin{thebibliography}{00}
+\bibitem{liu2020} S. Liu, ``Design and implementation of a geospatial dashboard for crime analysis and prediction,'' M.A.Sc. thesis, Civil Engineering, Ryerson University, Toronto, Canada, 2020.
+\bibitem{januszewski2026} A. S. Januszewski and C. D. Greene, ``An online visualization tool for exploring crime patterns around U.S. counties and postsecondary institutions,'' \textit{Journal of American College Health}, Mar. 2026. [Online]. Available: \url{https://www.tandfonline.com/doi/full/10.1080/07448481.2026.2630051}
+\bibitem{vancrime} M. Chan, M. Nam, A. Wang, and T. Zoght, ``VanCrime: Vancouver crime dashboard,'' UBC Master of Data Science, DSCI 532 course project. [Online]. Available: \url{https://github.com/UBC-MDS/VanCrime}
+\bibitem{harrisburg} Harrisburg University, ``A scalable architecture for visualizing and analyzing crime data in LA.'' [Online]. Available: \url{https://digitalcommons.harrisburgu.edu/cgi/viewcontent.cgi?article=1015&context=other-works}
+\bibitem{umar} S. Umar, ``Vancouver Police Department crimes navigation tool.'' [Online]. Available: \url{https://salvaumar.shinyapps.io/vanc_crime_stats_dashboard/}
+\bibitem{crimemapping} CrimeMapping. [Online]. Available: \url{https://www.crimemapping.com}
+\bibitem{crimedatavan} CrimeData-Vancouver, open-source crime analytics platform built on Vancouver Police Department data. [Online]. Available: \url{https://github.com/ywan3223/CrimeData-Vancouver}
+\bibitem{lexisnexis} LexisNexis Risk Solutions, ``Community Crime Map.'' [Online]. Available: \url{https://communitycrimemap.com}
+\bibitem{spotcrime} SpotCrime. [Online]. Available: \url{https://spotcrime.com}
+\bibitem{iglewicz1993} B. Iglewicz and D. C. Hoaglin, \textit{How to Detect and Handle Outliers}. Milwaukee, WI: ASQC Quality Press, 1993.
+\bibitem{tukey1977} J. W. Tukey, \textit{Exploratory Data Analysis}. Reading, MA: Addison-Wesley, 1977.
+\bibitem{liu2008} F. T. Liu, K. M. Ting, and Z.-H. Zhou, ``Isolation forest,'' in \textit{Proc. 8th IEEE Int. Conf. Data Mining}, 2008, pp. 413--422.
+\end{thebibliography}
+
+\end{document}

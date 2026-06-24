@@ -330,6 +330,36 @@ def inject_css():
             box-shadow: 0 4px 15px rgba(0,180,216,0.25) !important;
         }
 
+        /* ── Pills (category / region toggles) ── */
+        button[kind="pills"] {
+            background: rgba(255,255,255,0.03) !important;
+            border: 1px solid rgba(255,255,255,0.08) !important;
+            color: #c4cad8 !important;
+        }
+        button[kind="pills"]:hover {
+            background: rgba(212,175,55,0.08) !important;
+            color: #d4af37 !important;
+        }
+        button[kind="pillsActive"] {
+            background: linear-gradient(135deg, rgba(212,175,55,0.22), rgba(212,175,55,0.06)) !important;
+            border-color: rgba(212,175,55,0.4) !important;
+            color: #f0d77a !important;
+        }
+
+        /* ── Radio / checkbox option labels ── */
+        [data-testid="stRadio"] label,
+        [data-testid="stRadio"] label p,
+        [data-testid="stCheckbox"] label,
+        [data-testid="stCheckbox"] label p {
+            color: #c4cad8 !important;
+        }
+
+        /* ── Select / multiselect text & dropdown menu ── */
+        [data-baseweb="select"] * { color: #e8eaf0 !important; }
+        [data-baseweb="popover"] li,
+        [data-baseweb="menu"] li { color: #e8eaf0 !important; }
+        [data-baseweb="tag"] { color: #0a0e1a !important; }
+
         /* ── Inputs & Selects ── */
         .stMultiSelect [data-baseweb="select"] div {
             background: rgba(12,17,32,0.9) !important;
@@ -694,19 +724,43 @@ def render_sidebar(df: pd.DataFrame):
         year_range = st.slider("Year", y_min, y_max, (y_min, y_max), label_visibility="collapsed", key="yr")
 
         # ── Crime Category ───────────────────────────────────
-        st.markdown("**🔍 Crime Category**")
+        st.markdown("**🔍 Crime Category** — click to toggle")
         all_cats = sorted(df["Crime_Category"].unique())
-        sel_cats = st.multiselect("Category", all_cats, default=all_cats, label_visibility="collapsed", key="cat")
+        sel_cats = st.pills(
+            "Category", all_cats, default=all_cats, selection_mode="multi",
+            label_visibility="collapsed", key="cat",
+        )
+        if not sel_cats:
+            sel_cats = all_cats  # treat empty as "all" instead of "none"
 
         # ── Region ──────────────────────────────────────────
-        st.markdown("**📍 Region**")
+        st.markdown("**📍 Region** — click to toggle")
         all_regions = sorted(df["Region"].unique())
-        sel_regions = st.multiselect("Region", all_regions, default=all_regions, label_visibility="collapsed", key="reg")
+        sel_regions = st.pills(
+            "Region", all_regions, default=all_regions, selection_mode="multi",
+            label_visibility="collapsed", key="reg",
+        )
+        if not sel_regions:
+            sel_regions = all_regions
 
         # ── Neighbourhood ───────────────────────────────────
         st.markdown("**🏘 Neighbourhood**")
         all_nb = sorted(df["Neighbourhood"].unique())
-        sel_nb = st.multiselect("Neighbourhood", all_nb, default=[], placeholder="All (leave blank)", label_visibility="collapsed", key="nb")
+        nb_col1, nb_col2 = st.columns(2)
+
+        def _nb_all():
+            st.session_state["nb"] = all_nb
+
+        def _nb_clear():
+            st.session_state["nb"] = []
+
+        nb_col1.button("Select all", on_click=_nb_all, use_container_width=True, key="nb_all_btn")
+        nb_col2.button("Clear", on_click=_nb_clear, use_container_width=True, key="nb_clear_btn")
+        sel_nb = st.multiselect(
+            "Neighbourhood", all_nb, default=[],
+            placeholder="Leave blank to include all 25 neighbourhoods",
+            label_visibility="collapsed", key="nb",
+        )
 
         # ── CSI Severity Threshold ───────────────────────────
         st.markdown("**⚖️ Crime Severity Weight**")

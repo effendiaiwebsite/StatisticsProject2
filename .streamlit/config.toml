@@ -1,0 +1,11 @@
+[theme]
+# Match the custom dark "premium" palette used in app.py's inject_css().
+# Without base="dark", native widgets (pills, radio, selectbox, checkbox,
+# dropdown menus) render with Streamlit's light-theme dark text, which is
+# invisible on the dark background.
+base = "dark"
+primaryColor = "#d4af37"
+backgroundColor = "#0a0e1a"
+secondaryBackgroundColor = "#0f1628"
+textColor = "#e8eaf0"
+font = "sans serif"

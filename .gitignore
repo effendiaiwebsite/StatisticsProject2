@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Local tooling / logs
+_tools/
+_st.log
+*.log
+
+# Streamlit secrets (keep config.toml, ignore secrets)
+.streamlit/secrets.toml
+
+# Raw dataset archives (extracted CSV/XLSX are tracked instead)
+datasets/*.zip
+
+# LaTeX build artifacts
+*.aux
+*.out
+*.synctex.gz
